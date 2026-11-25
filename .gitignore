@@ -155,3 +155,5 @@ wandb/
 # Weights
 model/Weights
 
+
+venv_wsl/
