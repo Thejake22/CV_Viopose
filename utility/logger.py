@@ -45,7 +45,7 @@ def check_path(prev_dir, dir, epoch, type, exe):
     
 
 def save_model(model, prev_dir, model_dir, epoch, type):
-    model_dir = check_path(prev_dir, model_dir, epoch, type, 'h5')
+    model_dir = check_path(prev_dir, model_dir, epoch, type, 'weights.h5')
     model.save_weights(model_dir)
     print(type + ' Model is Saved at ' + model_dir)
 
@@ -81,7 +81,12 @@ class Logger:
 
     def log_tensorboard(self, epoch, optimizer, metric_obj, cfg):
         with self.tb.as_default():
-            tf.summary.scalar('train/LR', optimizer.lr, step=epoch)
+            # Keras optimizers expose the configured (and schedule-adjusted)
+            # rate as `learning_rate`; `lr` is not available in newer versions.
+            learning_rate = optimizer.learning_rate
+            if callable(learning_rate):
+                learning_rate = learning_rate(optimizer.iterations)
+            tf.summary.scalar('train/LR', learning_rate, step=epoch)
             for _, key in enumerate(metric_obj):
                 label = key.split('_')
                 tf.summary.scalar(label[0] + '/'+ label[1], metric_obj[key].result(), step=epoch)

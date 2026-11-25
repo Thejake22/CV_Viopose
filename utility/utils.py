@@ -124,7 +124,7 @@ def read_model(dir, type, model):
         exit()
     
     model_dir = os.path.join(dir, 'model', model_dir[-1])
-    model.load_weights(model_dir, by_name=True)
+    model.load_weights(model_dir)
     print("Successfully load pre-trained model")
 
     return model
@@ -252,7 +252,7 @@ def get_metrics(metric_type, test=False, total=True, joint_wise=False):
 
 def metric_reset(metric_obj):
     for _, metric in metric_obj.items():
-        metric.reset_states()
+        metric.reset_state()
 
 def loss_compute(gt, output, cfg, audio, total=True, joint_wise=False):
     loss_obj={}

@@ -13,6 +13,7 @@ class Model(tf.keras.Model):
                  audio_type,
                  hidden_dim_ratio=2,
                  num_keypoints=14,
+                 output_keypoints=None,
                  num_heads=8,
                  dropout=0.1,
                  output_frame=300,
@@ -47,6 +48,8 @@ class Model(tf.keras.Model):
 
         self.dropout_ratio = dropout
         self.num_keypoints = num_keypoints
+        # The 2D pose input and 3D target can use different skeleton sizes.
+        self.output_keypoints = output_keypoints or num_keypoints
         self.output_frame = output_frame
         self.hidden_dim_ratio = hidden_dim_ratio
         self.num_heads = num_heads
@@ -95,8 +98,8 @@ class Model(tf.keras.Model):
             self.pose_module_cross_norm =  tf.keras.layers.LayerNormalization(epsilon=1e-5, name="up_cross_norm")
             self.pose_module_cross_PE = PositionEmbedding(int(self.audio_frame/self.audio_frame_discount), self.audio_dim, name="upsampling_cross_PE")
 
-        self.to_full_frame = tf.keras.layers.Dense(units=3*num_keypoints, kernel_initializer=create_initializer(0.02), name="to_full")
-        self.vel_regression_mlp = tf.keras.layers.Dense(units=3*num_keypoints, kernel_initializer=create_initializer(0.02), name="Vel_regression")
+        self.to_full_frame = tf.keras.layers.Dense(units=3*self.output_keypoints, kernel_initializer=create_initializer(0.02), name="to_full")
+        self.vel_regression_mlp = tf.keras.layers.Dense(units=3*self.output_keypoints, kernel_initializer=create_initializer(0.02), name="Vel_regression")
 
         dim = self.dynamic_module_dim
         if not self.audio_module:
@@ -192,7 +195,7 @@ class Model(tf.keras.Model):
 
         self.audio_last_mlp2 = tf.keras.layers.Dense(units=128, activation=keras.layers.LeakyReLU(), kernel_initializer=create_initializer(0.02), name="Audio_last_mlp2")
         self.audio_last_mlp3 = tf.keras.layers.Dense(units=64, activation=keras.layers.LeakyReLU(), kernel_initializer=create_initializer(0.02), name="Audio_last_mlp3")
-        self.audio_regression = tf.keras.layers.Dense(units=3*self.num_keypoints, kernel_initializer=create_initializer(0.02), name="Audio_to_rotation")
+        self.audio_regression = tf.keras.layers.Dense(units=3*self.output_keypoints, kernel_initializer=create_initializer(0.02), name="Audio_to_rotation")
 
     def data_prep(self, input):
         x_joint = input[0]
@@ -311,14 +314,14 @@ class Model(tf.keras.Model):
         x = self.audio_last_mlp3(x)
         audio = self.audio_regression(x)
 
-        audio_pose = Rearrange("b f (j c)->b f j c", j=self.num_keypoints)(audio)
+        audio_pose = Rearrange("b f (j c)->b f j c", j=self.output_keypoints)(audio)
 
         return audio_pose
 
     def vel_regression(self, latent, acc):
         vel = self.vel_regression_mlp(latent)
 
-        vel = Rearrange("b f (j c)->b f j c", j=self.num_keypoints)(vel)
+        vel = Rearrange("b f (j c)->b f j c", j=self.output_keypoints)(vel)
 
         vel_pred = vel[:, :-1, :] + acc[:, :-1, :]
         vel_pred = tf.concat((vel_pred[:, 0:1 :], vel_pred), axis=1)
@@ -391,6 +394,7 @@ def construct_model(cfg, audio_type, pos_x_dim, audio_x_dim, print_summary=True)
     print(cfg.NUM_HEADS)
     fusion_net = Model(hidden_dim_ratio=cfg.HIDDEN_DIM_RATIO,
                        num_keypoints=cfg.NUM_KEYPOINTS,
+                       output_keypoints=cfg.OUTPUT_KEYPOINTS,
                        audio_type=audio_type,
                        pose_module=cfg.POSE_MODULE,
                        dynamic_module=cfg.DYNAMIC_MODULE,

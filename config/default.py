@@ -56,6 +56,7 @@ _C.MODEL.NAME = 'MAPNET Test'
 _C.MODEL.TYPE = 'baseline'
 _C.MODEL.CENTER_OUTPUT = False
 _C.MODEL.NUM_KEYPOINTS = 12
+_C.MODEL.OUTPUT_KEYPOINTS = None  # Defaults to NUM_KEYPOINTS when not specified
 _C.MODEL.HIDDEN_DIM_RATIO = 2
 _C.MODEL.NUM_HEADS = 8
 _C.MODEL.DROPOUT = 0.1
@@ -110,3 +111,4 @@ def read_config(cfg, file):
     cfg.defrost()
     cfg.merge_from_file(file)
     cfg.freeze()
+_C.MODEL.REBALANCING_TYPE = 0

@@ -1,3 +1,4 @@
+import tensorflow as tf
 import argparse
 import numpy as np
 import os
@@ -182,7 +183,7 @@ def evaluate(single_dataset, overlapped_frame, att=False):
         if 'audio' in input:
             audio_x = input['audio']
         else:
-            audio_x = None
+            audio_x = tf.zeros_like(pose_x)
 
         output = model([pose_x, audio_x], training=False)
 
@@ -225,6 +226,8 @@ _, test_ds, audio_frame, audio_dim = slice_generate_dataset(dataset, cfg, test=T
 
 # Load Model
 model, ONLY_LOSS = build_model(cfg, audio_frame, audio_dim)
+for _inp, _, _ in test_ds.take(1):
+    model([_inp["pose"], _inp.get("audio", tf.zeros_like(_inp["pose"]))], training=False)
 model = read_model(args.folder, args.type, model)
 
 result = {}
